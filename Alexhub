@@ -1,0 +1,182 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+task.wait(2)
+
+local MainWindow = Rayfield:CreateWindow({
+   Name = "Alex Hub",
+   LoadingTitle = "Alex Hub",
+   LoadingSubtitle = "Key System",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = true,
+   KeySettings = {
+      Title = "Alex Hub Key",
+      Subtitle = "Acceso Principal",
+      Note = "Key: hub",
+      FileName = "AlexHubKey",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {"hub"}
+   }
+})
+
+local Tab = MainWindow:CreateTab("Selector", 4483362458)
+Tab:CreateSection("Elige tu Menú")
+
+Tab:CreateButton({Name = "🟢 Menú Normal", Callback = function() loadNormalMenu() end})
+Tab:CreateButton({Name = "🔴 Menú VIP", Callback = function() loadVIPMenu() end})
+
+function loadNormalMenu()
+   local Window = Rayfield:CreateWindow({
+      Name = "Alex Normal",
+      LoadingTitle = "Cargando...",
+      LoadingSubtitle = "Versión Normal",
+      ConfigurationSaving = { Enabled = false },
+      KeySystem = true,
+      KeySettings = {
+         Title = "Key Normal",
+         Subtitle = "Verificación",
+         Note = "Key: alexv1.0",
+         FileName = "AlexNormalKey",
+         SaveKey = true,
+         GrabKeyFromSite = false,
+         Key = {"alexv1.0"}
+      }
+   })
+
+   local TabFarm = Window:CreateTab("Auto Farm", 4483362458)
+   createFarmTab(TabFarm, "Normal")
+end
+
+function loadVIPMenu()
+   local Window = Rayfield:CreateWindow({
+      Name = "Alex VIP",
+      LoadingTitle = "Cargando...",
+      LoadingSubtitle = "Versión VIP",
+      ConfigurationSaving = { Enabled = false },
+      KeySystem = true,
+      KeySettings = {
+         Title = "Key VIP",
+         Subtitle = "Verificación",
+         Note = "Key: vipalex1.0",
+         FileName = "AlexVIPKey",
+         SaveKey = true,
+         GrabKeyFromSite = false,
+         Key = {"vipalex1.0"}
+      }
+   })
+
+   local TabFarm = Window:CreateTab("Auto Farm VIP", 4483362458)
+   TabFarm:CreateSection("Auto Teleporte + Velocidad VIP")
+
+   local targetPos = Vector3.new(-3600.06, 153.27, -937.45)
+   local enabled = false
+   local farmSpeed = 200
+
+   TabFarm:CreateToggle({
+      Name = "Activar Auto Teleporte + Speed",
+      CurrentValue = false,
+      Callback = function(state)
+         enabled = state
+         if state then
+            task.spawn(function()
+               while enabled do
+                  local char = game.Players.LocalPlayer.Character
+                  if char and char:FindFirstChild("HumanoidRootPart") then
+                     char.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+                     local hum = char:FindFirstChild("Humanoid")
+                     if hum then hum.WalkSpeed = farmSpeed end
+                  end
+                  task.wait(0.2)
+               end
+            end)
+         end
+      end,
+   })
+
+   TabFarm:CreateSlider({Name = "Velocidad (1-500)", Range = {1, 500}, Increment = 1, CurrentValue = 200, Callback = function(v) farmSpeed = v end})
+
+   TabFarm:CreateSection("📍 Coordenadas")
+   TabFarm:CreateInput({Name = "X", PlaceholderText = tostring(targetPos.X), Callback = function(v) targetPos = Vector3.new(tonumber(v) or targetPos.X, targetPos.Y, targetPos.Z) end})
+   TabFarm:CreateInput({Name = "Y", PlaceholderText = tostring(targetPos.Y), Callback = function(v) targetPos = Vector3.new(targetPos.X, tonumber(v) or targetPos.Y, targetPos.Z) end})
+   TabFarm:CreateInput({Name = "Z", PlaceholderText = tostring(targetPos.Z), Callback = function(v) targetPos = Vector3.new(targetPos.X, targetPos.Y, tonumber(v) or targetPos.Z) end})
+
+   TabFarm:CreateButton({Name = "Detener Todo", Callback = function() enabled = false end})
+end
+
+function createFarmTab(Tab, version)
+   local waypoint1 = Vector3.new(-3625.27, 57.09, -4630.61)
+   local waypoint2 = Vector3.new(-3600.06, 153.27, -937.45)
+   local enabled = false
+   local currentSpeed = 180
+   local flyHeight = 90
+   local waitAfterLand = 8
+
+   local bodyVel = nil
+   local noclipConn = nil
+   local loopConn = nil
+
+   local function stopMovement()
+      enabled = false
+      if bodyVel then bodyVel:Destroy() bodyVel = nil end
+      if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+      if loopConn then loopConn:Disconnect() loopConn = nil end
+   end
+
+   local function goToPoint(target)
+      if not enabled then return end
+      local player = game.Players.LocalPlayer
+      local char = player.Character or player.CharacterAdded:Wait()
+      local root = char:WaitForChild("HumanoidRootPart")
+
+      noclipConn = game:GetService("RunService").Stepped:Connect(function()
+         for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+         end
+      end)
+
+      bodyVel = Instance.new("BodyVelocity")
+      bodyVel.MaxForce = Vector3.new(100000, 100000, 100000)
+      bodyVel.P = 2000
+      bodyVel.Parent = root
+
+      loopConn = game:GetService("RunService").Heartbeat:Connect(function()
+         if not enabled or not root.Parent then return end
+         local currentPos = root.Position
+         local highTarget = Vector3.new(target.X, target.Y + flyHeight, target.Z)
+         if (highTarget - currentPos).Magnitude > 30 then
+            bodyVel.Velocity = (highTarget - currentPos).Unit * currentSpeed
+         else
+            stopMovement()
+            root.Velocity = Vector3.new(0, -35, 0)
+            task.wait(waitAfterLand)
+            if enabled and target == waypoint1 then
+               goToPoint(waypoint2)
+            end
+         end
+      end)
+   end
+
+   game.Players.LocalPlayer.CharacterAdded:Connect(function()
+      task.wait(2)
+      if enabled then goToPoint(waypoint1) end
+   end)
+
+   Tab:CreateSection("Auto Farm - Alex " .. version)
+
+   Tab:CreateToggle({
+      Name = "Activar AutoFarm (2 puntos)",
+      CurrentValue = false,
+      Callback = function(v)
+         enabled = v
+         if v then goToPoint(waypoint1) else stopMovement() end
+      end,
+   })
+
+   Tab:CreateSlider({Name = "Velocidad", Range = {50, 500}, Increment = 10, CurrentValue = 180, Callback = function(v) currentSpeed = v end})
+   Tab:CreateSlider({Name = "Altura de Vuelo", Range = {40, 200}, Increment = 5, CurrentValue = 90, Callback = function(v) flyHeight = v end})
+   Tab:CreateSlider({Name = "Espera después de llegar", Range = {3, 25}, Increment = 1, CurrentValue = 8, Callback = function(v) waitAfterLand = v end})
+
+   Tab:CreateButton({Name = "Ir al Punto", Callback = function() enabled = true; goToPoint(waypoint1) end})
+   Tab:CreateButton({Name = "Detener", Callback = stopMovement})
+end
+
+Rayfield:Notify({Title = "Alex Hub", Content = "Listo ✅", Duration = 6})
