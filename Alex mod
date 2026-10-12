@@ -1,0 +1,547 @@
+--[[
+    Alex Mod — San Diego Border (v2.0 con Key Monetizada por Work.ink)
+    Key actual: La que configuraste en tu Pastebin
+]]
+
+local Players = game:GetService("Players")
+local RS = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Tween = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local LP = Players.LocalPlayer
+
+local unlocked, menuOpen, expanded = false, false, false
+
+-- ==================== CONFIGURACIÓN DE ENLACES ====================
+local LINK_KEY = "https://work.ink/@bfd29035dbfc48f3/key-alex-mod" -- Tu enlace de Work.ink
+local RAW_KEY_URL = "https://pastebin.com/raw/fKyxhgFq" -- Tu enlace RAW de Pastebin
+
+-- Limpieza de ejecuciones anteriores
+if gethui and gethui():FindFirstChild("AlexModSanDiego") then
+    gethui():FindFirstChild("AlexModSanDiego"):Destroy()
+elseif LP:WaitForChild("PlayerGui"):FindFirstChild("AlexModSanDiego") then
+    LP:WaitForChild("PlayerGui"):FindFirstChild("AlexModSanDiego"):Destroy()
+end
+
+-- Variables de Estado
+local delGates, delBarriers, delFences = false, false, false
+local playerESP, antiAFK, FullbrightToggle = false, false, false
+
+-- Colores Estándar
+local BG = Color3.fromRGB(18, 20, 26)
+local PANEL_BG = Color3.fromRGB(25, 28, 38)
+local ITEM_BG = Color3.fromRGB(34, 38, 52)
+local ACCENT = Color3.fromRGB(0, 162, 255)
+local TEXT_COLOR = Color3.fromRGB(240, 240, 245)
+local TEXT_DARK = Color3.fromRGB(140, 145, 160)
+local REDC = Color3.fromRGB(220, 60, 70)
+
+-- ==================== SCREEN GUI ====================
+local SG = Instance.new("ScreenGui")
+SG.Name = "AlexModSanDiego"
+SG.ResetOnSpawn = false
+SG.IgnoreGuiInset = true
+SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+if gethui then
+    SG.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(SG)
+    SG.Parent = LP:WaitForChild("PlayerGui")
+else
+    SG.Parent = LP:WaitForChild("PlayerGui")
+end
+
+local function notify(msg)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(0, 240, 0, 36)
+    f.Position = UDim2.new(0.5, -120, 0, 30)
+    f.BackgroundColor3 = PANEL_BG
+    f.ZIndex = 500
+    f.Parent = SG
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = ACCENT
+    stroke.Thickness = 1.5
+    stroke.Parent = f
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(1, 0, 1, 0)
+    txt.BackgroundTransparency = 1
+    txt.TextColor3 = TEXT_COLOR
+    txt.Font = Enum.Font.GothamBold
+    txt.TextSize = 12
+    txt.Text = msg
+    txt.ZIndex = 501
+    txt.Parent = f
+
+    task.delay(2.5, function()
+        if f then f:Destroy() end
+    end)
+end
+
+-- ==================== BOTÓN FLOTANTE ====================
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Size = UDim2.new(0, 40, 0, 40)
+OpenBtn.Position = UDim2.new(0, 16, 0, 60)
+OpenBtn.BackgroundColor3 = PANEL_BG
+OpenBtn.Text = "›"
+OpenBtn.TextColor3 = ACCENT
+OpenBtn.Font = Enum.Font.GothamBlack
+OpenBtn.TextSize = 22
+OpenBtn.ZIndex = 100
+OpenBtn.Parent = SG
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+
+local openStroke = Instance.new("UIStroke")
+openStroke.Color = ACCENT
+openStroke.Thickness = 1.5
+openStroke.Parent = OpenBtn
+
+local btnHolder = Instance.new("Frame")
+btnHolder.Size = UDim2.new(0, 40, 0, 45)
+btnHolder.Position = UDim2.new(0, 16, 0, 106)
+btnHolder.BackgroundTransparency = 1
+btnHolder.ClipsDescendants = true
+btnHolder.ZIndex = 99
+btnHolder.Parent = SG
+
+local MenuBtn = Instance.new("TextButton")
+MenuBtn.Size = UDim2.new(0, 40, 0, 40)
+MenuBtn.Position = UDim2.new(0, 0, 0, -45)
+MenuBtn.BackgroundColor3 = PANEL_BG
+MenuBtn.Text = "MENU"
+MenuBtn.TextColor3 = ACCENT
+MenuBtn.Font = Enum.Font.GothamBold
+MenuBtn.TextSize = 9
+MenuBtn.ZIndex = 100
+MenuBtn.Parent = btnHolder
+Instance.new("UICorner", MenuBtn).CornerRadius = UDim.new(1, 0)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    expanded = not expanded
+    OpenBtn.Text = expanded and "v" or "›"
+    
+    if expanded then
+        Tween:Create(MenuBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+    else
+        Tween:Create(MenuBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, 0, -45)}):Play()
+    end
+end)
+
+-- ==================== INTERFAZ PRINCIPAL ====================
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 520, 0, 360)
+Main.Position = UDim2.new(0.5, -260, 0.5, -180)
+Main.BackgroundColor3 = BG
+Main.Visible = false
+Main.Active = true
+Main.Draggable = true
+Main.ClipsDescendants = true
+Main.ZIndex = 50
+Main.Parent = SG
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(45, 50, 65)
+mainStroke.Thickness = 1
+mainStroke.Parent = Main
+
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = PANEL_BG
+Header.ZIndex = 51
+Header.Parent = Main
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.6, 0, 1, 0)
+title.Position = UDim2.new(0, 16, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "ALEX MOD <font color=\"#00A2FF\">SAN DIEGO</font>"
+title.RichText = true
+title.TextColor3 = TEXT_COLOR
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 52
+title.Parent = Header
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -38, 0, 8)
+CloseBtn.BackgroundColor3 = REDC
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 12
+CloseBtn.ZIndex = 60
+CloseBtn.Parent = Header
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(1, 0)
+
+local TabSidebar = Instance.new("Frame")
+TabSidebar.Size = UDim2.new(0, 130, 1, -55)
+TabSidebar.Position = UDim2.new(0, 10, 0, 50)
+TabSidebar.BackgroundColor3 = PANEL_BG
+TabSidebar.ZIndex = 51
+TabSidebar.Parent = Main
+Instance.new("UICorner", TabSidebar).CornerRadius = UDim.new(0, 8)
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1, -160, 1, -55)
+ContentArea.Position = UDim2.new(0, 150, 0, 50)
+ContentArea.BackgroundTransparency = 1
+ContentArea.ZIndex = 51
+ContentArea.Parent = Main
+
+local tabs = {}
+local tabButtons = {}
+
+local function createTab(name)
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = ACCENT
+    page.Visible = false
+    page.ZIndex = 52
+    page.Parent = ContentArea
+    tabs[name] = page
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -12, 0, 32)
+    btn.Position = UDim2.new(0, 6, 0, (#tabButtons * 38) + 6)
+    btn.BackgroundColor3 = ITEM_BG
+    btn.Text = name
+    btn.TextColor3 = TEXT_DARK
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.ZIndex = 52
+    btn.Parent = TabSidebar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    btn.MouseButton1Click:Connect(function()
+        for tName, tPage in pairs(tabs) do
+            tPage.Visible = (tName == name)
+        end
+        for _, tBtn in ipairs(tabButtons) do
+            tBtn.TextColor3 = TEXT_DARK
+            tBtn.BackgroundColor3 = ITEM_BG
+        end
+        btn.TextColor3 = ACCENT
+        btn.BackgroundColor3 = Color3.fromRGB(42, 48, 65)
+    end)
+
+    table.insert(tabButtons, btn)
+    return page
+end
+
+local MainTab = createTab("Obstáculos")
+local TeleportTab = createTab("Teleports")
+local UtilTab = createTab("Utilidades")
+
+tabs["Obstáculos"].Visible = true
+tabButtons[1].TextColor3 = ACCENT
+tabButtons[1].BackgroundColor3 = Color3.fromRGB(42, 48, 65)
+
+-- ==================== COMPONENTES UI ====================
+local function addToggle(page, text, get, set, y)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -10, 0, 36)
+    row.Position = UDim2.new(0, 0, 0, y)
+    row.BackgroundColor3 = PANEL_BG
+    row.ZIndex = 53
+    row.Parent = page
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 4, 1, 0)
+    indicator.BackgroundColor3 = get() and ACCENT or Color3.fromRGB(60, 65, 80)
+    indicator.ZIndex = 54
+    indicator.Parent = row
+    Instance.new("UICorner", indicator).CornerRadius = UDim.new(0, 2)
+
+    local lab = Instance.new("TextLabel")
+    lab.Size = UDim2.new(0.65, 0, 1, 0)
+    lab.Position = UDim2.new(0.06, 0, 0, 0)
+    lab.BackgroundTransparency = 1
+    lab.Text = text
+    lab.TextColor3 = TEXT_COLOR
+    lab.Font = Enum.Font.Gotham
+    lab.TextSize = 11
+    lab.TextXAlignment = Enum.TextXAlignment.Left
+    lab.ZIndex = 54
+    lab.Parent = row
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 46, 0, 22)
+    btn.Position = UDim2.new(1, -54, 0.5, -11)
+    btn.BackgroundColor3 = get() and ACCENT or ITEM_BG
+    btn.Text = get() and "ON" or "OFF"
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    btn.ZIndex = 54
+    btn.Parent = row
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    btn.MouseButton1Click:Connect(function()
+        local v = not get()
+        set(v)
+        btn.BackgroundColor3 = v and ACCENT or ITEM_BG
+        indicator.BackgroundColor3 = v and ACCENT or Color3.fromRGB(60, 65, 80)
+        btn.Text = v and "ON" or "OFF"
+        notify(text .. (v and " ACTIVADO" or " DESACTIVADO"))
+    end)
+end
+
+local function addActionButton(page, text, y, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 34)
+    btn.Position = UDim2.new(0, 0, 0, y)
+    btn.BackgroundColor3 = PANEL_BG
+    btn.Text = text
+    btn.TextColor3 = TEXT_COLOR
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.ZIndex = 53
+    btn.Parent = page
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(45, 50, 65)
+    stroke.Thickness = 1
+    stroke.Parent = btn
+
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- ==================== BOTONES Y FUNCIONES ====================
+addToggle(MainTab, "Borrar Portones (Gates)", function() return delGates end, function(v) delGates = v end, 0)
+addToggle(MainTab, "Borrar Barreras de Concreto", function() return delBarriers end, function(v) delBarriers = v end, 42)
+addToggle(MainTab, "Borrar Mallas (Fences)", function() return delFences end, function(v) delFences = v end, 84)
+
+addActionButton(TeleportTab, "TP a la Frontera / Border", 0, function()
+    local char = LP.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CFrame = CFrame.new(0, 15, 0)
+        notify("Teletransportado a la Frontera")
+    end
+end)
+
+addActionButton(TeleportTab, "TP al Garage / Taller", 42, function()
+    local char = LP.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CFrame = CFrame.new(100, 15, 100)
+        notify("Teletransportado al Garage")
+    end
+end)
+
+addToggle(UtilTab, "Jugadores ESP (Ver Paredes)", function() return playerESP end, function(v) 
+    playerESP = v 
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and p.Character then
+            if v then
+                local hl = Instance.new("Highlight")
+                hl.Name = "AlexESP"
+                hl.FillColor = ACCENT
+                hl.OutlineColor = Color3.new(1, 1, 1)
+                hl.Parent = p.Character
+            else
+                if p.Character:FindFirstChild("AlexESP") then
+                    p.Character.AlexESP:Destroy()
+                end
+            end
+        end
+    end
+end, 0)
+
+addToggle(UtilTab, "Modo Visión Nocturna (Fullbright)", function() return FullbrightToggle end, function(v)
+    FullbrightToggle = v
+    if v then
+        game:GetService("Lighting").Ambient = Color3.fromRGB(255, 255, 255)
+    else
+        game:GetService("Lighting").Ambient = Color3.fromRGB(128, 128, 128)
+    end
+end, 42)
+
+addToggle(UtilTab, "Anti-AFK (Evitar Desconexión)", function() return antiAFK end, function(v) antiAFK = v end, 84)
+
+-- Lógica Anti-AFK
+local vu = game:GetService("VirtualUser")
+LP.Idled:Connect(function()
+    if antiAFK then
+        vu:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        vu:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+        notify("Anti-AFK activado")
+    end
+end)
+
+-- Bucle para eliminar barreras
+task.spawn(function()
+    while task.wait(0.6) do
+        if delGates or delBarriers or delFences then
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    local n = obj.Name:lower()
+                    local pName = obj.Parent and obj.Parent.Name:lower() or ""
+                    
+                    local isGate = delGates and (n:find("gate") or n:find("puerta") or pName:find("gate"))
+                    local isBarrier = delBarriers and (n:find("barrier") or n:find("barrera") or n:find("concrete") or pName:find("barrier"))
+                    local isFence = delFences and (n:find("fence") or n:find("reja") or n:find("malla") or pName:find("fence"))
+                    
+                    if isGate or isBarrier or isFence then
+                        obj.CanCollide = false
+                        obj.Transparency = 0.7
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ==================== SISTEMA DE KEY MONETIZADO ====================
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 290, 0, 195)
+KeyFrame.Position = UDim2.new(0.5, -145, 0.5, -97)
+KeyFrame.BackgroundColor3 = BG
+KeyFrame.Visible = false
+KeyFrame.ZIndex = 70
+KeyFrame.Parent = SG
+Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 12)
+
+local kStroke = Instance.new("UIStroke")
+kStroke.Color = Color3.fromRGB(45, 50, 65)
+kStroke.Thickness = 1.5
+kStroke.Parent = KeyFrame
+
+local kT = Instance.new("TextLabel")
+kT.Size = UDim2.new(1, 0, 0, 36)
+kT.BackgroundTransparency = 1
+kT.Text = "ALEX MOD <font color=\"#00A2FF\">KEY SYSTEM</font>"
+kT.RichText = true
+kT.TextColor3 = TEXT_COLOR
+kT.Font = Enum.Font.GothamBlack
+kT.TextSize = 14
+kT.ZIndex = 71
+kT.Parent = KeyFrame
+
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0.86, 0, 0, 34)
+KeyBox.Position = UDim2.new(0.07, 0, 0.24, 0)
+KeyBox.BackgroundColor3 = PANEL_BG
+KeyBox.PlaceholderText = "Escribe la Key..."
+KeyBox.Text = ""
+KeyBox.TextColor3 = TEXT_COLOR
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.TextSize = 12
+KeyBox.ZIndex = 71
+KeyBox.Parent = KeyFrame
+Instance.new("UICorner", KeyBox).CornerRadius = UDim.new(0, 6)
+
+local EnterBtn = Instance.new("TextButton")
+EnterBtn.Size = UDim2.new(0.86, 0, 0, 32)
+EnterBtn.Position = UDim2.new(0.07, 0, 0.46, 0)
+EnterBtn.BackgroundColor3 = ACCENT
+EnterBtn.Text = "VERIFICAR KEY"
+EnterBtn.TextColor3 = Color3.new(1, 1, 1)
+EnterBtn.Font = Enum.Font.GothamBold
+EnterBtn.TextSize = 11
+EnterBtn.ZIndex = 71
+EnterBtn.Parent = KeyFrame
+Instance.new("UICorner", EnterBtn).CornerRadius = UDim.new(0, 6)
+
+local GetKeyBtn = Instance.new("TextButton")
+GetKeyBtn.Size = UDim2.new(0.86, 0, 0, 32)
+GetKeyBtn.Position = UDim2.new(0.07, 0, 0.68, 0)
+GetKeyBtn.BackgroundColor3 = ITEM_BG
+GetKeyBtn.Text = "🔑 OBTENER KEY"
+GetKeyBtn.TextColor3 = TEXT_COLOR
+GetKeyBtn.Font = Enum.Font.GothamBold
+GetKeyBtn.TextSize = 11
+GetKeyBtn.ZIndex = 71
+GetKeyBtn.Parent = KeyFrame
+Instance.new("UICorner", GetKeyBtn).CornerRadius = UDim.new(0, 6)
+
+GetKeyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(LINK_KEY)
+        notify("Link copiado al portapapeles")
+    else
+        notify("Tu ejecutor no soporta copiar link")
+    end
+end)
+
+local function openMenu()
+    if not unlocked then 
+        KeyFrame.Visible = true 
+        return 
+    end
+    menuOpen = true
+    Main.Size = UDim2.new(0, 520, 0, 0)
+    Main.Visible = true
+    Tween:Create(Main, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 520, 0, 360)}):Play()
+end
+
+local function closeAll()
+    menuOpen = false
+    Tween:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 520, 0, 0)}):Play()
+    task.delay(0.25, function()
+        Main.Visible = false
+    end)
+    KeyFrame.Visible = false
+    expanded = false
+    OpenBtn.Text = "›"
+    Tween:Create(MenuBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0, 0, 0, -45)}):Play()
+end
+
+MenuBtn.MouseButton1Click:Connect(openMenu)
+CloseBtn.MouseButton1Click:Connect(closeAll)
+
+EnterBtn.MouseButton1Click:Connect(function()
+    local inputKey = KeyBox.Text
+    if inputKey == "" then
+        notify("Escribe una Key")
+        return
+    end
+
+    notify("Verificando...")
+    task.spawn(function()
+        local success, onlineKey = pcall(function()
+            return game:HttpGet(RAW_KEY_URL)
+        end)
+
+        if success and onlineKey then
+            onlineKey = onlineKey:gsub("%s+", "") -- Elimina espacios en blanco
+            
+            if inputKey == onlineKey then
+                unlocked = true
+                KeyFrame.Visible = false
+                notify("¡Key Correcta!")
+                openMenu()
+            else
+                notify("Key Incorrecta")
+                KeyBox.Text = ""
+            end
+        else
+            notify("Error al conectar con Pastebin")
+        end
+    end)
+end)
+
+UIS.InputBegan:Connect(function(i, g)
+    if g then return end
+    if i.KeyCode == Enum.KeyCode.RightShift then
+        if menuOpen or KeyFrame.Visible then 
+            closeAll()
+        else 
+            openMenu() 
+        end
+    end
+end)
